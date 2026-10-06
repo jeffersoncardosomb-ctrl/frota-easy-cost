@@ -23,7 +23,6 @@ import { Route as PainelAnaliseVisaoGeralRouteImport } from './routes/_painel/_a
 import { Route as PainelAdminCadastrosRouteImport } from './routes/_painel/admin/cadastros'
 import { Route as PainelAdminImportarRouteImport } from './routes/_painel/admin/importar'
 import { Route as PainelAnaliseAtivosIndexRouteImport } from './routes/_painel/_analise/ativos/index'
-import { Route as PainelAnaliseAtivosMRouteImport } from './routes/_painel/_analise/ativos/$m'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -95,11 +94,6 @@ const PainelAnaliseAtivosIndexRoute =
     path: '/ativos/',
     getParentRoute: () => PainelAnaliseRoute,
   } as any)
-const PainelAnaliseAtivosMRoute = PainelAnaliseAtivosMRouteImport.update({
-  id: '/ativos/$m',
-  path: '/ativos/$m',
-  getParentRoute: () => PainelAnaliseRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -113,7 +107,6 @@ export interface FileRoutesByFullPath {
   '/visao-geral': typeof PainelAnaliseVisaoGeralRoute
   '/admin/cadastros': typeof PainelAdminCadastrosRoute
   '/admin/importar': typeof PainelAdminImportarRoute
-  '/ativos/$m': typeof PainelAnaliseAtivosMRoute
   '/ativos/': typeof PainelAnaliseAtivosIndexRoute
 }
 export interface FileRoutesByTo {
@@ -128,7 +121,6 @@ export interface FileRoutesByTo {
   '/visao-geral': typeof PainelAnaliseVisaoGeralRoute
   '/admin/cadastros': typeof PainelAdminCadastrosRoute
   '/admin/importar': typeof PainelAdminImportarRoute
-  '/ativos/$m': typeof PainelAnaliseAtivosMRoute
   '/ativos': typeof PainelAnaliseAtivosIndexRoute
 }
 export interface FileRoutesById {
@@ -146,7 +138,6 @@ export interface FileRoutesById {
   '/_painel/_analise/visao-geral': typeof PainelAnaliseVisaoGeralRoute
   '/_painel/admin/cadastros': typeof PainelAdminCadastrosRoute
   '/_painel/admin/importar': typeof PainelAdminImportarRoute
-  '/_painel/_analise/ativos/$m': typeof PainelAnaliseAtivosMRoute
   '/_painel/_analise/ativos/': typeof PainelAnaliseAtivosIndexRoute
 }
 export interface FileRouteTypes {
@@ -163,7 +154,6 @@ export interface FileRouteTypes {
     | '/visao-geral'
     | '/admin/cadastros'
     | '/admin/importar'
-    | '/ativos/$m'
     | '/ativos/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -178,7 +168,6 @@ export interface FileRouteTypes {
     | '/visao-geral'
     | '/admin/cadastros'
     | '/admin/importar'
-    | '/ativos/$m'
     | '/ativos'
   id:
     | '__root__'
@@ -195,7 +184,6 @@ export interface FileRouteTypes {
     | '/_painel/_analise/visao-geral'
     | '/_painel/admin/cadastros'
     | '/_painel/admin/importar'
-    | '/_painel/_analise/ativos/$m'
     | '/_painel/_analise/ativos/'
   fileRoutesById: FileRoutesById
 }
@@ -306,13 +294,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelAnaliseAtivosIndexRouteImport
       parentRoute: typeof PainelAnaliseRoute
     }
-    '/_painel/_analise/ativos/$m': {
-      id: '/_painel/_analise/ativos/$m'
-      path: '/ativos/$m'
-      fullPath: '/ativos/$m'
-      preLoaderRoute: typeof PainelAnaliseAtivosMRouteImport
-      parentRoute: typeof PainelAnaliseRoute
-    }
   }
 }
 
@@ -322,7 +303,6 @@ interface PainelAnaliseRouteChildren {
   PainelAnaliseQualidadeDadosRoute: typeof PainelAnaliseQualidadeDadosRoute
   PainelAnaliseTendenciaRoute: typeof PainelAnaliseTendenciaRoute
   PainelAnaliseVisaoGeralRoute: typeof PainelAnaliseVisaoGeralRoute
-  PainelAnaliseAtivosMRoute: typeof PainelAnaliseAtivosMRoute
   PainelAnaliseAtivosIndexRoute: typeof PainelAnaliseAtivosIndexRoute
 }
 
@@ -332,7 +312,6 @@ const PainelAnaliseRouteChildren: PainelAnaliseRouteChildren = {
   PainelAnaliseQualidadeDadosRoute: PainelAnaliseQualidadeDadosRoute,
   PainelAnaliseTendenciaRoute: PainelAnaliseTendenciaRoute,
   PainelAnaliseVisaoGeralRoute: PainelAnaliseVisaoGeralRoute,
-  PainelAnaliseAtivosMRoute: PainelAnaliseAtivosMRoute,
   PainelAnaliseAtivosIndexRoute: PainelAnaliseAtivosIndexRoute,
 }
 

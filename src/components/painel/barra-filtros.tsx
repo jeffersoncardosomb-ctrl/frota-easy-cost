@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Database, FilterX, Layers, Tractor } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ComboboxBusca, type OpcaoCombobox } from "@/components/painel/combobox-busca";
 import { SeletorMes } from "@/components/painel/seletor-mes";
@@ -15,38 +15,23 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { EMPRESAS, normalizarPatrimonio, rotuloPatrimonio, type Empresa } from "@/lib/filtros";
 import { formatMes } from "@/lib/format";
+import { useAtivosCadastro } from "@/lib/dados";
+import { grupoDoCadastro } from "@/lib/metricas";
 import { useFiltros } from "@/lib/use-filtros";
 
-type AtivoCadastro = {
-  m: number;
-  patrimonio: string | null;
-  subgrupo: string | null;
-  grupo_override: string | null;
-};
-
-/** Grupo do ativo, como na view v_lancamentos: "Grupo (edite aqui)" ou, vazio, o subgrupo. */
-function grupoDoAtivo(a: Pick<AtivoCadastro, "subgrupo" | "grupo_override">): string | null {
-  return a.grupo_override?.trim() || a.subgrupo || null;
-}
-
 function useGrupos() {
-  return useQuery({
-    queryKey: ["grupos"],
-    enabled: supabase != null,
-    staleTime: 5 * 60_000,
-    queryFn: async (): Promise<OpcaoCombobox[]> => {
-      const { data, error } = await supabase!.from("ativos").select("subgrupo, grupo_override");
-      if (error) throw error;
-      const grupos = new Set<string>();
-      for (const a of (data ?? []) as AtivoCadastro[]) {
-        const g = grupoDoAtivo(a);
-        if (g) grupos.add(g);
-      }
-      return [...grupos]
-        .sort((x, y) => x.localeCompare(y, "pt-BR"))
-        .map((g) => ({ valor: g, rotulo: g }));
-    },
-  });
+  const cadastro = useAtivosCadastro();
+  const opcoes = useMemo(() => {
+    const grupos = new Set<string>();
+    for (const a of cadastro.data ?? []) {
+      const g = grupoDoCadastro(a);
+      if (g) grupos.add(g);
+    }
+    return [...grupos]
+      .sort((x, y) => x.localeCompare(y, "pt-BR"))
+      .map((g): OpcaoCombobox => ({ valor: g, rotulo: g }));
+  }, [cadastro.data]);
+  return { ...cadastro, data: opcoes };
 }
 
 function useDebounce<T>(valor: T, ms: number): T {
@@ -71,7 +56,7 @@ function useBuscaPatrimonio(termo: string) {
       else if (t) q = q.ilike("patrimonio", `%${t}%`);
       const { data, error } = await q;
       if (error) throw error;
-      return ((data ?? []) as Pick<AtivoCadastro, "m" | "patrimonio">[]).map((a) => ({
+      return ((data ?? []) as { m: number; patrimonio: string | null }[]).map((a) => ({
         valor: String(a.m),
         rotulo: `M${a.m}`,
         ...(a.patrimonio ? { detalhe: a.patrimonio } : {}),
