@@ -243,3 +243,52 @@ export function useLancamentosAtivo(
       })),
   });
 }
+
+/** Subgrupos da tabela classificacao_subgrupo (para achar subgrupos novos na importação). */
+export function useSubgruposClassificados() {
+  return useQuery({
+    queryKey: ["classificacao_subgrupo"],
+    enabled: supabase != null,
+    staleTime: DEZ_MINUTOS,
+    gcTime: DEZ_MINUTOS,
+    queryFn: async (): Promise<string[]> =>
+      (
+        await buscarTodasAsLinhas(supabase!, "classificacao_subgrupo", "subgrupo", ["subgrupo"])
+      ).map((l) => String(l["subgrupo"])),
+  });
+}
+
+export type RegistroImportacao = {
+  id: string;
+  arquivo: string | null;
+  meses: ChaveMes[];
+  linhas: number;
+  criadoPor: string | null;
+  criadoPorEmail: string | null;
+  criadoEm: string;
+};
+
+/** Últimas importações, da mais recente para a mais antiga. */
+export function useImportacoes() {
+  return useQuery({
+    queryKey: ["importacoes"],
+    enabled: supabase != null,
+    queryFn: async (): Promise<RegistroImportacao[]> => {
+      const { data, error } = await supabase!
+        .from("importacoes")
+        .select("*")
+        .order("criado_em", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        id: String(r["id"]),
+        arquivo: texto(r["arquivo"]),
+        meses: Array.isArray(r["meses"]) ? (r["meses"] as string[]).map(mesDoBanco).sort() : [],
+        linhas: num(r["linhas"]),
+        criadoPor: texto(r["criado_por"]),
+        criadoPorEmail: texto(r["criado_por_email"]),
+        criadoEm: String(r["criado_em"]),
+      }));
+    },
+  });
+}
