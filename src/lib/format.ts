@@ -96,3 +96,16 @@ export function formatMes(chave: ChaveMes): string {
 export function nomeMesAbrev(mes: number): string {
   return MESES_ABREV[mes - 1] ?? "?";
 }
+
+/** Número com casas fixas: formatDecimal(2.345, 2) → "2,35". */
+export function formatDecimal(valor: number, casas = 1): string {
+  return valor.toLocaleString("pt-BR", {
+    minimumFractionDigits: casas,
+    maximumFractionDigits: casas,
+  });
+}
+
+/** Moeda com centavos, para custos unitários: "R$ 3,45". */
+export function formatMoedaCentavos(valor: number): string {
+  return `R$ ${formatDecimal(valor, 2)}`;
+}

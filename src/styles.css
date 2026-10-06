@@ -36,6 +36,10 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-serie-1: var(--serie-1);
+  --color-serie-2: var(--serie-2);
+  --color-serie-3: var(--serie-3);
+  --color-serie-4: var(--serie-4);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -78,6 +82,12 @@
   --chart-3: oklch(0.72 0.12 85);
   --chart-4: oklch(0.55 0.08 230);
   --chart-5: oklch(0.6 0.12 40);
+  /* séries dos gráficos (combustível, manutenção, salário, depreciação):
+     ordem fixa e validada para daltonismo — não reordenar */
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+  --serie-4: #eda100;
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.3 0.02 150);
   --sidebar-primary: oklch(0.42 0.1 152);
@@ -116,6 +126,10 @@
   --chart-3: oklch(0.8 0.12 85);
   --chart-4: oklch(0.7 0.09 230);
   --chart-5: oklch(0.72 0.12 40);
+  --serie-1: #3987e5;
+  --serie-2: #d95926;
+  --serie-3: #199e70;
+  --serie-4: #c98500;
   --sidebar: oklch(0.2 0.012 150);
   --sidebar-foreground: oklch(0.9 0.01 140);
   --sidebar-primary: oklch(0.68 0.13 152);

@@ -487,6 +487,7 @@ export function tabelaAtivos(
   const doPeriodo = filtrarLinhas(linhas, f);
   const janela = janela12m(f.mesFim);
   const ultimos12m = noPeriodo(daEmpresa, janela);
+  const mesesPeriodo = mesesNoPeriodo({ ini: f.mesIni, fim: f.mesFim });
 
   const refSubgrupo = agruparPorSubgrupo(ultimos12m);
   const manut12m = new Map<number, number>();
@@ -535,9 +536,12 @@ export function tabelaAtivos(
         alertas.push(ALERTAS.CONSUMO_FORA_PADRAO);
       }
     }
+    // Compara média mensal com média mensal: com período de 1 mês é a regra
+    // da planilha; com períodos maiores, o total do período sempre passaria
+    // de N x a média de UM mês e todo ativo viraria "atípico".
     if (
       totais.manutencao > parametros.alerta_manut_min &&
-      totais.manutencao > parametros.alerta_manut_multiplo * (manutencao12m / 12)
+      totais.manutencao / mesesPeriodo > parametros.alerta_manut_multiplo * (manutencao12m / 12)
     ) {
       alertas.push(ALERTAS.MANUTENCAO_ATIPICA);
     }
@@ -620,6 +624,169 @@ export function rateioSemirreboques(
       }))
       .sort((a, b) => b.custo_reboque - a.custo_reboque),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Visão geral: eficiência por categoria, composição, alertas e conferência
+// ---------------------------------------------------------------------------
+
+/** Maiúsculas e sem acento, para comparar categorias/subcategorias digitadas de formas diferentes. */
+export function normalizarTexto(v: string | null | undefined): string {
+  return (v ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+}
+
+export type EficienciaComparada = { periodo: Eficiencia; ultimos12m: Eficiencia };
+
+/**
+ * Eficiência de uma categoria (ex.: VEÍCULOS em km, MÁQUINAS em h) no período e
+ * nos 12m terminando em mesFim. Só entram linhas da unidade pedida.
+ */
+export function eficienciaCategoria(
+  linhas: readonly LinhaMensalAtivo[],
+  f: FiltroMetricas,
+  categoria: string,
+  unidade: Exclude<Unidade, "-">,
+): EficienciaComparada {
+  const alvo = normalizarTexto(categoria);
+  const base = filtrarDimensoes(linhas, f).filter(
+    (l) => l.unidade === unidade && normalizarTexto(l.categoria) === alvo,
+  );
+  const calc = (p: Periodo) => {
+    const ls = noPeriodo(base, p);
+    return calcularEficiencia(
+      unidade,
+      ls.reduce((s, l) => s + l.km_hr, 0),
+      ls.reduce((s, l) => s + l.litros, 0),
+      ls.reduce((s, l) => s + l.custo_total, 0),
+    );
+  };
+  return { periodo: calc({ ini: f.mesIni, fim: f.mesFim }), ultimos12m: calc(janela12m(f.mesFim)) };
+}
+
+/** Ordem fixa das subcategorias na composição (outras encontradas vêm depois). */
+export const SUBCATEGORIAS = [
+  "Veículos leves",
+  "Veículos pesados",
+  "Máquinas",
+  "Implementos",
+  "NÃO CLASSIFICADO",
+] as const;
+
+export type LinhaComposicao = {
+  subcategoria: string;
+  combustivel: number;
+  manutencao: number;
+  salario: number;
+  depreciacao: number;
+  total: number;
+  /** Fração do total do período. */
+  pct: number | null;
+  total12m: number;
+  total12mAnterior: number;
+  var12m: number | null;
+  totalAnoAnterior: number;
+  varAnoAnterior: number | null;
+};
+
+export function composicaoPorSubcategoria(
+  linhas: readonly LinhaMensalAtivo[],
+  f: FiltroMetricas,
+): LinhaComposicao[] {
+  const base = filtrarDimensoes(linhas, f);
+  const atual = { ini: f.mesIni, fim: f.mesFim };
+  const janelas = {
+    atual,
+    u12: janela12m(f.mesFim),
+    a12: janela12mAnterior(f.mesFim),
+    ano: mesmoPeriodoAnoAnterior(atual),
+  };
+
+  // rótulo canônico por chave normalizada
+  const rotulos = new Map<string, string>(SUBCATEGORIAS.map((s) => [normalizarTexto(s), s]));
+  for (const l of base) {
+    const k = normalizarTexto(l.subcategoria) || "NAO CLASSIFICADO";
+    if (!rotulos.has(k)) rotulos.set(k, l.subcategoria);
+  }
+
+  const doGrupo = (k: string, p: Periodo) =>
+    somarTotais(
+      noPeriodo(base, p).filter(
+        (l) => (normalizarTexto(l.subcategoria) || "NAO CLASSIFICADO") === k,
+      ),
+    );
+
+  const totalPeriodo = somarTotais(noPeriodo(base, atual)).custo_total;
+  return [...rotulos.entries()].map(([k, subcategoria]) => {
+    const t = doGrupo(k, janelas.atual);
+    const total12m = doGrupo(k, janelas.u12).custo_total;
+    const total12mAnterior = doGrupo(k, janelas.a12).custo_total;
+    const totalAnoAnterior = doGrupo(k, janelas.ano).custo_total;
+    return {
+      subcategoria,
+      combustivel: t.combustivel,
+      manutencao: t.manutencao,
+      salario: t.salario,
+      depreciacao: t.depreciacao,
+      total: t.custo_total,
+      pct: dividir(t.custo_total, totalPeriodo),
+      total12m,
+      total12mAnterior,
+      var12m: variacao(total12m, total12mAnterior),
+      totalAnoAnterior,
+      varAnoAnterior: variacao(t.custo_total, totalAnoAnterior),
+    };
+  });
+}
+
+export type ResumoAlertas = {
+  total: number;
+  ativosComAlerta: number;
+  porTipo: Record<Alerta, number>;
+};
+
+export function resumirAlertas(tabela: readonly LinhaTabelaAtivo[]): ResumoAlertas {
+  const porTipo = Object.fromEntries(Object.values(ALERTAS).map((a) => [a, 0])) as Record<
+    Alerta,
+    number
+  >;
+  let total = 0;
+  let ativosComAlerta = 0;
+  for (const a of tabela) {
+    if (a.alertas.length > 0) ativosComAlerta++;
+    for (const al of a.alertas) {
+      porTipo[al]++;
+      total++;
+    }
+  }
+  return { total, ativosComAlerta, porTipo };
+}
+
+/** Custo do período em subgrupos sem classificação. */
+export function custoNaoClassificado(
+  linhas: readonly LinhaMensalAtivo[],
+  f: FiltroMetricas,
+): number {
+  return filtrarLinhas(linhas, f)
+    .filter((l) => normalizarTexto(l.categoria) === "NAO CLASSIFICADO")
+    .reduce((s, l) => s + l.custo_total, 0);
+}
+
+export type Conferencia = {
+  somaCategorias: number;
+  totalBase: number;
+  diferenca: number;
+  ok: boolean;
+};
+
+/** Combustível + manutenção + salário + depreciação deve fechar com o custo total (tolerância R$ 1). */
+export function conferirTotais(t: Totais): Conferencia {
+  const somaCategorias = t.combustivel + t.manutencao + t.salario + t.depreciacao;
+  const diferenca = somaCategorias - t.custo_total;
+  return { somaCategorias, totalBase: t.custo_total, diferenca, ok: Math.abs(diferenca) <= 1 };
 }
 
 // ---------------------------------------------------------------------------
