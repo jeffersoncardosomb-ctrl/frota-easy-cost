@@ -39,9 +39,6 @@ const maquinas: Maquina[] = [
   { nome: "Case 580N", tipo: "Retroescavadeira", horas: 0, custoHora: 95, ativa: false },
 ];
 
-const fmtBRL = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: BRL: undefined as never, minimumFractionDigits: 0 } as never);
-
 const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR")}`;
 
 function Index() {
