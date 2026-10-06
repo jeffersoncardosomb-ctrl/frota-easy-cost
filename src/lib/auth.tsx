@@ -9,7 +9,8 @@ import {
   type ReactNode,
 } from "react";
 
-import { supabase, supabaseConfigurado } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
+import { supabaseConfigurado } from "@/lib/supabase-status";
 
 type AuthState = {
   /** true enquanto a sessão (e o papel) ainda estão sendo carregados no navegador. */
