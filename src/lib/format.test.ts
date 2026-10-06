@@ -8,7 +8,12 @@ import {
   formatVariacao,
   somarMeses,
 } from "@/lib/format";
-import { resolverFiltros, validarFiltrosSearch } from "@/lib/filtros";
+import {
+  normalizarPatrimonio,
+  resolverFiltros,
+  rotuloPatrimonio,
+  validarFiltrosSearch,
+} from "@/lib/filtros";
 
 describe("formatação pt-BR", () => {
   it("formata moeda sem centavos", () => {
@@ -62,5 +67,13 @@ describe("filtros da URL", () => {
     expect(f.de).toBe("2026-02");
     expect(f.ate).toBe("2026-06");
     expect(f.empresa).toBe("VC");
+  });
+
+  it("normaliza o número M do patrimônio", () => {
+    expect(normalizarPatrimonio("M101")).toBe("101");
+    expect(normalizarPatrimonio(" m 0101 ")).toBe("101");
+    expect(normalizarPatrimonio("Trator JD")).toBe("Trator JD");
+    expect(rotuloPatrimonio("101")).toBe("M101");
+    expect(rotuloPatrimonio("Trator JD")).toBe("Trator JD");
   });
 });

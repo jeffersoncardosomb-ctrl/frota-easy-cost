@@ -13,9 +13,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { EMPRESAS, type Empresa } from "@/lib/filtros";
+import { EMPRESAS, normalizarPatrimonio, rotuloPatrimonio, type Empresa } from "@/lib/filtros";
 import { formatMes } from "@/lib/format";
 import { useFiltros } from "@/lib/use-filtros";
+
+type AtivoCadastro = {
+  m: number;
+  patrimonio: string | null;
+  subgrupo: string | null;
+  grupo_override: string | null;
+};
+
+/** Grupo do ativo, como na view v_lancamentos: "Grupo (edite aqui)" ou, vazio, o subgrupo. */
+function grupoDoAtivo(a: Pick<AtivoCadastro, "subgrupo" | "grupo_override">): string | null {
+  return a.grupo_override?.trim() || a.subgrupo || null;
+}
 
 function useGrupos() {
   return useQuery({
@@ -23,9 +35,16 @@ function useGrupos() {
     enabled: supabase != null,
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<OpcaoCombobox[]> => {
-      const { data, error } = await supabase!.from("grupos").select("nome").order("nome");
+      const { data, error } = await supabase!.from("ativos").select("subgrupo, grupo_override");
       if (error) throw error;
-      return (data ?? []).map((g: { nome: string }) => ({ valor: g.nome, rotulo: g.nome }));
+      const grupos = new Set<string>();
+      for (const a of (data ?? []) as AtivoCadastro[]) {
+        const g = grupoDoAtivo(a);
+        if (g) grupos.add(g);
+      }
+      return [...grupos]
+        .sort((x, y) => x.localeCompare(y, "pt-BR"))
+        .map((g) => ({ valor: g, rotulo: g }));
     },
   });
 }
@@ -41,20 +60,21 @@ function useDebounce<T>(valor: T, ms: number): T {
 
 function useBuscaPatrimonio(termo: string) {
   // Remove caracteres que quebram a sintaxe do filtro .or() do PostgREST.
-  const t = useDebounce(termo.replace(/[,()*%\\]/g, " ").trim(), 250);
+  const t = useDebounce(normalizarPatrimonio(termo.replace(/[,()*%\\]/g, " ")), 250);
   return useQuery({
     queryKey: ["ativos-busca", t],
     enabled: supabase != null,
     staleTime: 60_000,
     queryFn: async (): Promise<OpcaoCombobox[]> => {
-      let q = supabase!.from("ativos").select("patrimonio, nome").order("patrimonio").limit(30);
-      if (t) q = q.or(`patrimonio.ilike.%${t}%,nome.ilike.%${t}%`);
+      let q = supabase!.from("ativos").select("m, patrimonio").order("m").limit(30);
+      if (/^\d+$/.test(t)) q = q.or(`m.eq.${t},patrimonio.ilike.%${t}%`);
+      else if (t) q = q.ilike("patrimonio", `%${t}%`);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []).map((a: { patrimonio: string; nome: string }) => ({
-        valor: a.patrimonio,
-        rotulo: a.patrimonio,
-        detalhe: a.nome,
+      return ((data ?? []) as Pick<AtivoCadastro, "m" | "patrimonio">[]).map((a) => ({
+        valor: String(a.m),
+        rotulo: `M${a.m}`,
+        ...(a.patrimonio ? { detalhe: a.patrimonio } : {}),
       }));
     },
   });
@@ -126,12 +146,13 @@ export function BarraFiltros() {
           placeholder="Patrimônio"
           placeholderBusca="Número M ou nome…"
           valor={filtros.patrimonio}
+          rotuloValor={filtros.patrimonio ? rotuloPatrimonio(filtros.patrimonio) : null}
           opcoes={ativos.data ?? []}
           carregando={ativos.isFetching && !ativos.data}
           vazio={ativos.isError ? "Erro na busca." : "Nenhum patrimônio encontrado."}
           onBuscaChange={setTermoPatrimonio}
           permitirLivre
-          onChange={(patrimonio) => alterarFiltros({ patrimonio })}
+          onChange={(p) => alterarFiltros({ patrimonio: p ? normalizarPatrimonio(p) : null })}
         />
 
         {temFiltroExtra && (
