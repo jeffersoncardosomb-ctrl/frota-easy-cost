@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { rotuloPatrimonio } from "@/lib/filtros";
 import { formatMes } from "@/lib/format";
 import { useFiltros } from "@/lib/use-filtros";
 
@@ -64,7 +65,7 @@ export function PaginaAnaliseVazia(props: {
           </Badge>
           {filtros.grupo && <Badge variant="secondary">Grupo: {filtros.grupo}</Badge>}
           {filtros.patrimonio && (
-            <Badge variant="secondary">Patrimônio: {filtros.patrimonio}</Badge>
+            <Badge variant="secondary">Patrimônio: {rotuloPatrimonio(filtros.patrimonio)}</Badge>
           )}
         </div>
       </EstadoVazio>

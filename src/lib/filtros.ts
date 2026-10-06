@@ -75,3 +75,15 @@ export function filtrosParaSearch(f: Filtros): FiltrosSearch {
   if (f.patrimonio) out.patrimonio = f.patrimonio;
   return out;
 }
+
+/** "M101", "m 101" ou "101" → "101"; qualquer outro texto fica como está. */
+export function normalizarPatrimonio(termo: string): string {
+  const t = termo.trim();
+  const numero = /^m?\s*(\d+)$/i.exec(t);
+  return numero ? String(Number(numero[1])) : t;
+}
+
+/** "101" → "M101" para exibição. */
+export function rotuloPatrimonio(valor: string): string {
+  return /^\d+$/.test(valor) ? `M${valor}` : valor;
+}
