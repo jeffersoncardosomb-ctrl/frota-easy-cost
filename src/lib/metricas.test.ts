@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { somarMeses } from "@/lib/format";
 import {
   ALERTAS,
+  composicaoPorSubcategoria,
+  conferirTotais,
+  custoNaoClassificado,
+  eficienciaCategoria,
   eficienciaPorSubgrupo,
   filtrarLinhas,
   filtroDaUrl,
@@ -13,6 +18,7 @@ import {
   PARAMETROS_PADRAO,
   periodoAnterior,
   rateioSemirreboques,
+  resumirAlertas,
   resumoPeriodo,
   serieMensal,
   somarTotais,
@@ -285,6 +291,22 @@ describe("tabela de ativos e alertas", () => {
     expect(t.find((a) => a.m === 2)!.alertas).not.toContain(ALERTAS.MANUTENCAO_ATIPICA);
   });
 
+  it("MANUTENÇÃO ATÍPICA em período longo compara médias mensais", () => {
+    // 12 meses de 1500/mês: total 18000 > 3 x 1500, mas a média mensal é igual
+    const linhas = Array.from({ length: 12 }, (_, i) =>
+      linha({
+        m: 1,
+        mes: somarMeses("2026-08", -i),
+        manutencao: 1500,
+        custo_total: 1500,
+        km_hr: 1,
+        litros: 1,
+      }),
+    );
+    const t = tabelaAtivos(linhas, filtro({ mesIni: "2025-09" }), p);
+    expect(t[0]!.alertas).not.toContain(ALERTAS.MANUTENCAO_ATIPICA);
+  });
+
   it("lê parâmetros do banco com padrões e vírgula decimal", () => {
     expect(lerParametros({ alerta_consumo_desvio: "0,3", alerta_manut_min: "abc" })).toEqual({
       ...PARAMETROS_PADRAO,
@@ -322,5 +344,88 @@ describe("rateio de semirreboques", () => {
     );
     expect(r.reaisPorKm).toBeNull();
     expect(r.porCavalo).toEqual([]);
+  });
+});
+
+describe("visão geral", () => {
+  it("eficiência por categoria usa só a unidade pedida e compara com 12m", () => {
+    const linhas = [
+      linha({ categoria: "VEÍCULOS", unidade: "km", km_hr: 1000, litros: 250, custo_total: 2000 }),
+      linha({
+        categoria: "Veiculos",
+        unidade: "km",
+        km_hr: 1000,
+        litros: 250,
+        custo_total: 2000,
+        mes: "2026-01",
+      }),
+      // máquina em horas não entra no km/L dos veículos
+      linha({ categoria: "MÁQUINAS", unidade: "h", km_hr: 10, litros: 100, custo_total: 900 }),
+    ];
+    const v = eficienciaCategoria(linhas, filtro(), "VEÍCULOS", "km");
+    expect(v.periodo.consumo).toBe(4);
+    expect(v.periodo.custoPorUnidade).toBe(2);
+    expect(v.ultimos12m.km_hr).toBe(2000);
+    const mq = eficienciaCategoria(linhas, filtro(), "MÁQUINAS", "h");
+    expect(mq.periodo.consumo).toBe(10);
+    expect(mq.periodo.custoPorUnidade).toBe(90);
+  });
+
+  it("composição traz as subcategorias fixas, % e comparações", () => {
+    const linhas = [
+      linha({ subcategoria: "Máquinas", combustivel: 300, manutencao: 100, custo_total: 400 }),
+      linha({ subcategoria: "MAQUINAS", mes: "2025-08", custo_total: 200 }),
+      linha({ subcategoria: "Implementos", custo_total: 100 }),
+      linha({ subcategoria: "Outra coisa", custo_total: 500 }),
+    ];
+    const c = composicaoPorSubcategoria(linhas, filtro());
+    expect(c.map((l) => l.subcategoria)).toEqual([
+      "Veículos leves",
+      "Veículos pesados",
+      "Máquinas",
+      "Implementos",
+      "NÃO CLASSIFICADO",
+      "Outra coisa",
+    ]);
+    const maq = c[2]!;
+    expect(maq.total).toBe(400);
+    expect(maq.combustivel).toBe(300);
+    expect(maq.pct).toBeCloseTo(0.4);
+    expect(maq.totalAnoAnterior).toBe(200);
+    expect(maq.varAnoAnterior).toBeCloseTo(1);
+    expect(maq.total12m).toBe(400);
+    expect(maq.var12m).toBeCloseTo(1); // 12m anteriores = 200 (ago/25)
+    expect(c[0]!.total).toBe(0);
+  });
+
+  it("resume alertas, custo não classificado e conferência", () => {
+    const tabela = tabelaAtivos(
+      [
+        linha({ m: 1, unidade: "h", custo_total: 100 }),
+        linha({ m: 2, unidade: "km", subgrupo: "X", litros: 10 }),
+      ],
+      filtro(),
+      PARAMETROS_PADRAO,
+    );
+    const r = resumirAlertas(tabela);
+    expect(r.total).toBe(2);
+    expect(r.ativosComAlerta).toBe(2);
+    expect(r.porTipo[ALERTAS.SEM_USO_COM_CUSTO]).toBe(1);
+    expect(r.porTipo[ALERTAS.MANUTENCAO_ATIPICA]).toBe(0);
+
+    expect(
+      custoNaoClassificado(
+        [linha({ categoria: "NÃO CLASSIFICADO", custo_total: 70 }), linha({ custo_total: 30 })],
+        filtro(),
+      ),
+    ).toBe(70);
+
+    const ok = conferirTotais(
+      somarTotais([linha({ combustivel: 60, manutencao: 40, custo_total: 100.5 })]),
+    );
+    expect(ok.ok).toBe(true);
+    const ruim = conferirTotais(somarTotais([linha({ combustivel: 60, custo_total: 100 })]));
+    expect(ruim.ok).toBe(false);
+    expect(ruim.diferenca).toBe(-40);
   });
 });
