@@ -79,6 +79,7 @@ export type Database = {
           arquivo: string | null
           criado_em: string
           criado_por: string | null
+          criado_por_email: string | null
           id: string
           linhas: number | null
           meses: string[] | null
@@ -87,6 +88,7 @@ export type Database = {
           arquivo?: string | null
           criado_em?: string
           criado_por?: string | null
+          criado_por_email?: string | null
           id?: string
           linhas?: number | null
           meses?: string[] | null
@@ -95,6 +97,7 @@ export type Database = {
           arquivo?: string | null
           criado_em?: string
           criado_por?: string | null
+          criado_por_email?: string | null
           id?: string
           linhas?: number | null
           meses?: string[] | null
