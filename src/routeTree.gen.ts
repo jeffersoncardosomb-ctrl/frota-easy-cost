@@ -10,33 +10,187 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PainelRouteImport } from './routes/_painel'
+import { Route as DefinirSenhaRouteImport } from './routes/definir-senha'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as PainelAnaliseRouteImport } from './routes/_painel/_analise'
+import { Route as PainelAdminRouteImport } from './routes/_painel/admin'
+import { Route as PainelAnaliseAtivosRouteImport } from './routes/_painel/_analise/ativos'
+import { Route as PainelAnaliseEficienciaRouteImport } from './routes/_painel/_analise/eficiencia'
+import { Route as PainelAnaliseManutencaoRouteImport } from './routes/_painel/_analise/manutencao'
+import { Route as PainelAnaliseQualidadeDadosRouteImport } from './routes/_painel/_analise/qualidade-dados'
+import { Route as PainelAnaliseTendenciaRouteImport } from './routes/_painel/_analise/tendencia'
+import { Route as PainelAnaliseVisaoGeralRouteImport } from './routes/_painel/_analise/visao-geral'
+import { Route as PainelAdminCadastrosRouteImport } from './routes/_painel/admin/cadastros'
+import { Route as PainelAdminImportarRouteImport } from './routes/_painel/admin/importar'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PainelRoute = PainelRouteImport.update({
+  id: '/_painel',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DefinirSenhaRoute = DefinirSenhaRouteImport.update({
+  id: '/definir-senha',
+  path: '/definir-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PainelAnaliseRoute = PainelAnaliseRouteImport.update({
+  id: '/_analise',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelAdminRoute = PainelAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelAnaliseAtivosRoute = PainelAnaliseAtivosRouteImport.update({
+  id: '/ativos',
+  path: '/ativos',
+  getParentRoute: () => PainelAnaliseRoute,
+} as any)
+const PainelAnaliseEficienciaRoute = PainelAnaliseEficienciaRouteImport.update({
+  id: '/eficiencia',
+  path: '/eficiencia',
+  getParentRoute: () => PainelAnaliseRoute,
+} as any)
+const PainelAnaliseManutencaoRoute = PainelAnaliseManutencaoRouteImport.update({
+  id: '/manutencao',
+  path: '/manutencao',
+  getParentRoute: () => PainelAnaliseRoute,
+} as any)
+const PainelAnaliseQualidadeDadosRoute =
+  PainelAnaliseQualidadeDadosRouteImport.update({
+    id: '/qualidade-dados',
+    path: '/qualidade-dados',
+    getParentRoute: () => PainelAnaliseRoute,
+  } as any)
+const PainelAnaliseTendenciaRoute = PainelAnaliseTendenciaRouteImport.update({
+  id: '/tendencia',
+  path: '/tendencia',
+  getParentRoute: () => PainelAnaliseRoute,
+} as any)
+const PainelAnaliseVisaoGeralRoute = PainelAnaliseVisaoGeralRouteImport.update({
+  id: '/visao-geral',
+  path: '/visao-geral',
+  getParentRoute: () => PainelAnaliseRoute,
+} as any)
+const PainelAdminCadastrosRoute = PainelAdminCadastrosRouteImport.update({
+  id: '/cadastros',
+  path: '/cadastros',
+  getParentRoute: () => PainelAdminRoute,
+} as any)
+const PainelAdminImportarRoute = PainelAdminImportarRouteImport.update({
+  id: '/importar',
+  path: '/importar',
+  getParentRoute: () => PainelAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/definir-senha': typeof DefinirSenhaRoute
+  '/login': typeof LoginRoute
+  '/admin': typeof PainelAdminRouteWithChildren
+  '/ativos': typeof PainelAnaliseAtivosRoute
+  '/eficiencia': typeof PainelAnaliseEficienciaRoute
+  '/manutencao': typeof PainelAnaliseManutencaoRoute
+  '/qualidade-dados': typeof PainelAnaliseQualidadeDadosRoute
+  '/tendencia': typeof PainelAnaliseTendenciaRoute
+  '/visao-geral': typeof PainelAnaliseVisaoGeralRoute
+  '/admin/cadastros': typeof PainelAdminCadastrosRoute
+  '/admin/importar': typeof PainelAdminImportarRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/definir-senha': typeof DefinirSenhaRoute
+  '/login': typeof LoginRoute
+  '/admin': typeof PainelAdminRouteWithChildren
+  '/ativos': typeof PainelAnaliseAtivosRoute
+  '/eficiencia': typeof PainelAnaliseEficienciaRoute
+  '/manutencao': typeof PainelAnaliseManutencaoRoute
+  '/qualidade-dados': typeof PainelAnaliseQualidadeDadosRoute
+  '/tendencia': typeof PainelAnaliseTendenciaRoute
+  '/visao-geral': typeof PainelAnaliseVisaoGeralRoute
+  '/admin/cadastros': typeof PainelAdminCadastrosRoute
+  '/admin/importar': typeof PainelAdminImportarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_painel': typeof PainelRouteWithChildren
+  '/definir-senha': typeof DefinirSenhaRoute
+  '/login': typeof LoginRoute
+  '/_painel/_analise': typeof PainelAnaliseRouteWithChildren
+  '/_painel/admin': typeof PainelAdminRouteWithChildren
+  '/_painel/_analise/ativos': typeof PainelAnaliseAtivosRoute
+  '/_painel/_analise/eficiencia': typeof PainelAnaliseEficienciaRoute
+  '/_painel/_analise/manutencao': typeof PainelAnaliseManutencaoRoute
+  '/_painel/_analise/qualidade-dados': typeof PainelAnaliseQualidadeDadosRoute
+  '/_painel/_analise/tendencia': typeof PainelAnaliseTendenciaRoute
+  '/_painel/_analise/visao-geral': typeof PainelAnaliseVisaoGeralRoute
+  '/_painel/admin/cadastros': typeof PainelAdminCadastrosRoute
+  '/_painel/admin/importar': typeof PainelAdminImportarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/definir-senha'
+    | '/login'
+    | '/admin'
+    | '/ativos'
+    | '/eficiencia'
+    | '/manutencao'
+    | '/qualidade-dados'
+    | '/tendencia'
+    | '/visao-geral'
+    | '/admin/cadastros'
+    | '/admin/importar'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/definir-senha'
+    | '/login'
+    | '/admin'
+    | '/ativos'
+    | '/eficiencia'
+    | '/manutencao'
+    | '/qualidade-dados'
+    | '/tendencia'
+    | '/visao-geral'
+    | '/admin/cadastros'
+    | '/admin/importar'
+  id:
+    | '__root__'
+    | '/'
+    | '/_painel'
+    | '/definir-senha'
+    | '/login'
+    | '/_painel/_analise'
+    | '/_painel/admin'
+    | '/_painel/_analise/ativos'
+    | '/_painel/_analise/eficiencia'
+    | '/_painel/_analise/manutencao'
+    | '/_painel/_analise/qualidade-dados'
+    | '/_painel/_analise/tendencia'
+    | '/_painel/_analise/visao-geral'
+    | '/_painel/admin/cadastros'
+    | '/_painel/admin/importar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PainelRoute: typeof PainelRouteWithChildren
+  DefinirSenhaRoute: typeof DefinirSenhaRoute
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +202,154 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_painel': {
+      id: '/_painel'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof PainelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/definir-senha': {
+      id: '/definir-senha'
+      path: '/definir-senha'
+      fullPath: '/definir-senha'
+      preLoaderRoute: typeof DefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_painel/_analise': {
+      id: '/_painel/_analise'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof PainelAnaliseRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/_painel/admin': {
+      id: '/_painel/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof PainelAdminRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/_painel/_analise/ativos': {
+      id: '/_painel/_analise/ativos'
+      path: '/ativos'
+      fullPath: '/ativos'
+      preLoaderRoute: typeof PainelAnaliseAtivosRouteImport
+      parentRoute: typeof PainelAnaliseRoute
+    }
+    '/_painel/_analise/eficiencia': {
+      id: '/_painel/_analise/eficiencia'
+      path: '/eficiencia'
+      fullPath: '/eficiencia'
+      preLoaderRoute: typeof PainelAnaliseEficienciaRouteImport
+      parentRoute: typeof PainelAnaliseRoute
+    }
+    '/_painel/_analise/manutencao': {
+      id: '/_painel/_analise/manutencao'
+      path: '/manutencao'
+      fullPath: '/manutencao'
+      preLoaderRoute: typeof PainelAnaliseManutencaoRouteImport
+      parentRoute: typeof PainelAnaliseRoute
+    }
+    '/_painel/_analise/qualidade-dados': {
+      id: '/_painel/_analise/qualidade-dados'
+      path: '/qualidade-dados'
+      fullPath: '/qualidade-dados'
+      preLoaderRoute: typeof PainelAnaliseQualidadeDadosRouteImport
+      parentRoute: typeof PainelAnaliseRoute
+    }
+    '/_painel/_analise/tendencia': {
+      id: '/_painel/_analise/tendencia'
+      path: '/tendencia'
+      fullPath: '/tendencia'
+      preLoaderRoute: typeof PainelAnaliseTendenciaRouteImport
+      parentRoute: typeof PainelAnaliseRoute
+    }
+    '/_painel/_analise/visao-geral': {
+      id: '/_painel/_analise/visao-geral'
+      path: '/visao-geral'
+      fullPath: '/visao-geral'
+      preLoaderRoute: typeof PainelAnaliseVisaoGeralRouteImport
+      parentRoute: typeof PainelAnaliseRoute
+    }
+    '/_painel/admin/cadastros': {
+      id: '/_painel/admin/cadastros'
+      path: '/cadastros'
+      fullPath: '/admin/cadastros'
+      preLoaderRoute: typeof PainelAdminCadastrosRouteImport
+      parentRoute: typeof PainelAdminRoute
+    }
+    '/_painel/admin/importar': {
+      id: '/_painel/admin/importar'
+      path: '/importar'
+      fullPath: '/admin/importar'
+      preLoaderRoute: typeof PainelAdminImportarRouteImport
+      parentRoute: typeof PainelAdminRoute
+    }
   }
 }
 
+interface PainelAnaliseRouteChildren {
+  PainelAnaliseAtivosRoute: typeof PainelAnaliseAtivosRoute
+  PainelAnaliseEficienciaRoute: typeof PainelAnaliseEficienciaRoute
+  PainelAnaliseManutencaoRoute: typeof PainelAnaliseManutencaoRoute
+  PainelAnaliseQualidadeDadosRoute: typeof PainelAnaliseQualidadeDadosRoute
+  PainelAnaliseTendenciaRoute: typeof PainelAnaliseTendenciaRoute
+  PainelAnaliseVisaoGeralRoute: typeof PainelAnaliseVisaoGeralRoute
+}
+
+const PainelAnaliseRouteChildren: PainelAnaliseRouteChildren = {
+  PainelAnaliseAtivosRoute: PainelAnaliseAtivosRoute,
+  PainelAnaliseEficienciaRoute: PainelAnaliseEficienciaRoute,
+  PainelAnaliseManutencaoRoute: PainelAnaliseManutencaoRoute,
+  PainelAnaliseQualidadeDadosRoute: PainelAnaliseQualidadeDadosRoute,
+  PainelAnaliseTendenciaRoute: PainelAnaliseTendenciaRoute,
+  PainelAnaliseVisaoGeralRoute: PainelAnaliseVisaoGeralRoute,
+}
+
+const PainelAnaliseRouteWithChildren = PainelAnaliseRoute._addFileChildren(
+  PainelAnaliseRouteChildren,
+)
+
+interface PainelAdminRouteChildren {
+  PainelAdminCadastrosRoute: typeof PainelAdminCadastrosRoute
+  PainelAdminImportarRoute: typeof PainelAdminImportarRoute
+}
+
+const PainelAdminRouteChildren: PainelAdminRouteChildren = {
+  PainelAdminCadastrosRoute: PainelAdminCadastrosRoute,
+  PainelAdminImportarRoute: PainelAdminImportarRoute,
+}
+
+const PainelAdminRouteWithChildren = PainelAdminRoute._addFileChildren(
+  PainelAdminRouteChildren,
+)
+
+interface PainelRouteChildren {
+  PainelAnaliseRoute: typeof PainelAnaliseRouteWithChildren
+  PainelAdminRoute: typeof PainelAdminRouteWithChildren
+}
+
+const PainelRouteChildren: PainelRouteChildren = {
+  PainelAnaliseRoute: PainelAnaliseRouteWithChildren,
+  PainelAdminRoute: PainelAdminRouteWithChildren,
+}
+
+const PainelRouteWithChildren =
+  PainelRoute._addFileChildren(PainelRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PainelRoute: PainelRouteWithChildren,
+  DefinirSenhaRoute: DefinirSenhaRoute,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
