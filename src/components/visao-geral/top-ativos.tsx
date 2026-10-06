@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 
 import { RegraCalculo } from "@/components/painel/cartao-kpi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { validarFiltrosSearch } from "@/lib/filtros";
 import { formatMoeda, formatMoedaCompacta } from "@/lib/format";
 import type { LinhaTabelaAtivo } from "@/lib/metricas";
 
@@ -12,7 +11,7 @@ export function TopAtivos({ ativos }: { ativos: LinhaTabelaAtivo[] }) {
     <Card className="min-w-0 gap-4">
       <CardHeader className="flex flex-row items-center gap-2">
         <CardTitle className="text-base">Top 10 ativos no período</CardTitle>
-        <RegraCalculo regra="Os 10 ativos (M) com maior custo total no período e filtros selecionados. Clique para abrir a ficha." />
+        <RegraCalculo regra="Os 10 ativos (M) com maior custo total no período e filtros selecionados. Clique para abrir a ficha do ativo." />
       </CardHeader>
       <CardContent>
         {ativos.length === 0 ? (
@@ -22,9 +21,8 @@ export function TopAtivos({ ativos }: { ativos: LinhaTabelaAtivo[] }) {
             {ativos.map((a, i) => (
               <li key={a.m}>
                 <Link
-                  to="/ativos/$m"
-                  params={{ m: String(a.m) }}
-                  search={(prev: Record<string, unknown>) => validarFiltrosSearch(prev)}
+                  to="."
+                  search={(prev: Record<string, unknown>) => ({ ...prev, ativo: a.m })}
                   className="block rounded-lg px-2 py-2 transition-colors hover:bg-accent/60 focus-visible:outline-2 focus-visible:outline-ring"
                 >
                   <div className="flex items-baseline gap-2 text-sm">

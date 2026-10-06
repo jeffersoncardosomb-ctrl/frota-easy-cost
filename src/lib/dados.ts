@@ -5,8 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
+import type { ChaveMes } from "@/lib/format";
 import {
   lerParametros,
+  type AtivoCadastro,
   mesDoBanco,
   type LinhaManutClasse,
   type LinhaMensalAtivo,
@@ -21,6 +23,9 @@ const DEZ_MINUTOS = 10 * 60_000;
 
 type Linha = Record<string, unknown>;
 
+/** Consulta do PostgREST já com select, antes de ordenar/paginar. */
+export type Consulta = ReturnType<ReturnType<SupabaseClient["from"]>["select"]>;
+
 /**
  * Busca todas as linhas de uma tabela/view paginando com .range().
  * Para só quando uma página volta vazia: se o servidor estiver configurado com
@@ -33,10 +38,11 @@ export async function buscarTodasAsLinhas(
   tabela: string,
   colunas: string,
   ordem: readonly string[],
+  filtrar: (q: Consulta) => Consulta = (q) => q,
 ): Promise<Linha[]> {
   const todas: Linha[] = [];
   for (;;) {
-    let q = client.from(tabela).select(colunas);
+    let q = filtrar(client.from(tabela).select(colunas));
     for (const coluna of ordem) q = q.order(coluna, { ascending: true, nullsFirst: true });
     const { data, error } = await q.range(todas.length, todas.length + TAMANHO_PAGINA - 1);
     if (error) throw error;
@@ -163,5 +169,77 @@ export function useSemirreboques() {
     gcTime: DEZ_MINUTOS,
     queryFn: async (): Promise<number[]> =>
       (await buscarTodasAsLinhas(supabase!, "semirreboques", "m", ["m"])).map((l) => num(l["m"])),
+  });
+}
+
+/** Cadastro de ativos (tabela ativos = aba GRUPOS). */
+export function useAtivosCadastro() {
+  return useQuery({
+    queryKey: ["ativos-cadastro"],
+    enabled: supabase != null,
+    staleTime: DEZ_MINUTOS,
+    gcTime: DEZ_MINUTOS,
+    queryFn: async (): Promise<AtivoCadastro[]> =>
+      (
+        await buscarTodasAsLinhas(supabase!, "ativos", "m, patrimonio, subgrupo, grupo_override", [
+          "m",
+        ])
+      ).map((l) => ({
+        m: num(l["m"]),
+        patrimonio: texto(l["patrimonio"]),
+        subgrupo: texto(l["subgrupo"]),
+        grupo_override: texto(l["grupo_override"]),
+      })),
+  });
+}
+
+/** Um lançamento de v_lancamentos (para a ficha do ativo). */
+export type Lancamento = {
+  id: number;
+  empresa: string;
+  mes: ChaveMes;
+  produto: string | null;
+  despesa: string | null;
+  classe: string | null;
+  conta: string | null;
+  motorista: string | null;
+  valor: number;
+};
+
+/** Lançamentos de um ativo (M) nos meses ini..fim, respeitando a empresa. */
+export function useLancamentosAtivo(
+  m: number | null,
+  periodo: { ini: ChaveMes; fim: ChaveMes },
+  empresa: string,
+) {
+  return useQuery({
+    queryKey: ["v_lancamentos", m, periodo.ini, periodo.fim, empresa],
+    enabled: supabase != null && m != null,
+    staleTime: DEZ_MINUTOS,
+    gcTime: DEZ_MINUTOS,
+    queryFn: async (): Promise<Lancamento[]> =>
+      (
+        await buscarTodasAsLinhas(
+          supabase!,
+          "v_lancamentos",
+          "id, empresa, mes, produto, despesa, classe_manutencao, conta, motorista, custo_total",
+          ["mes", "id"],
+          (q) => {
+            let r = q.eq("m", m!).gte("mes", `${periodo.ini}-01`).lte("mes", `${periodo.fim}-01`);
+            if (empresa !== "TODAS") r = r.eq("empresa", empresa);
+            return r;
+          },
+        )
+      ).map((l) => ({
+        id: num(l["id"]),
+        empresa: String(l["empresa"] ?? ""),
+        mes: mesDoBanco(String(l["mes"])),
+        produto: texto(l["produto"]),
+        despesa: texto(l["despesa"]),
+        classe: texto(l["classe_manutencao"]),
+        conta: texto(l["conta"]),
+        motorista: texto(l["motorista"]),
+        valor: num(l["custo_total"]),
+      })),
   });
 }

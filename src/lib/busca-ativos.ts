@@ -15,12 +15,14 @@ export const SLUG_POR_ALERTA = Object.fromEntries(
 ) as Record<Alerta, SlugAlerta>;
 
 /** Filtros extras da tela Ativos, além dos filtros gerais da barra. */
-export type BuscaAtivos = { subcategoria?: string; alerta?: SlugAlerta };
+export type BuscaAtivos = { subcategoria?: string; subgrupo?: string; alerta?: SlugAlerta };
 
 export function validarBuscaAtivos(search: Record<string, unknown>): BuscaAtivos {
   const out: BuscaAtivos = {};
   const sub = typeof search["subcategoria"] === "string" ? search["subcategoria"].trim() : "";
   if (sub) out.subcategoria = sub.slice(0, 80);
+  const subgrupo = typeof search["subgrupo"] === "string" ? search["subgrupo"].trim() : "";
+  if (subgrupo) out.subgrupo = subgrupo.slice(0, 80);
   const alerta = search["alerta"];
   if (typeof alerta === "string" && alerta in ALERTA_POR_SLUG) out.alerta = alerta as SlugAlerta;
   return out;

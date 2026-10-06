@@ -9,6 +9,12 @@ import {
   type Filtros,
 } from "@/lib/filtros";
 
+const CHAVES_BARRA = ["de", "ate", "empresa", "grupo", "patrimonio"];
+
+function semFiltrosDaBarra(search: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(search).filter(([k]) => !CHAVES_BARRA.includes(k)));
+}
+
 /** Lê e altera os filtros das telas de análise. O estado vive na query string. */
 export function useFiltros() {
   const search = useSearch({ from: "/_painel/_analise" });
@@ -24,11 +30,13 @@ export function useFiltros() {
 
   const alterarFiltros = useCallback(
     (parcial: Partial<Filtros>) => {
+      const novos = filtrosParaSearch(
+        resolverFiltros(filtrosParaSearch({ ...filtros, ...parcial }), ultimoMes),
+      );
       void navigate({
         to: ".",
-        search: filtrosParaSearch(
-          resolverFiltros(filtrosParaSearch({ ...filtros, ...parcial }), ultimoMes),
-        ),
+        // mantém o que não é filtro da barra (ex.: ?alerta= da tela Ativos)
+        search: (prev: Record<string, unknown>) => ({ ...semFiltrosDaBarra(prev), ...novos }),
         replace: true,
       });
     },
@@ -36,7 +44,11 @@ export function useFiltros() {
   );
 
   const limparFiltros = useCallback(() => {
-    void navigate({ to: ".", search: {}, replace: true });
+    void navigate({
+      to: ".",
+      search: (prev: Record<string, unknown>) => semFiltrosDaBarra(prev),
+      replace: true,
+    });
   }, [navigate]);
 
   return { filtros, alterarFiltros, limparFiltros, ultimoMes };

@@ -790,6 +790,276 @@ export function conferirTotais(t: Totais): Conferencia {
 }
 
 // ---------------------------------------------------------------------------
+// Manutenção por classe (v_mensal_manut_classe)
+// ---------------------------------------------------------------------------
+
+/** Ordem fixa das classes; outras encontradas entram antes de A CLASSIFICAR. */
+export const CLASSES_MANUTENCAO = [
+  "Peças e componentes",
+  "Oficina interna (rateio OS)",
+  "Serviços de terceiros",
+  "Pneus",
+  "Lubrificantes e filtros",
+  "Seguro IPVA e taxas",
+  "Pedágio",
+  "Combustível (lançado em manut.)",
+  "Estornos",
+  "A CLASSIFICAR",
+] as const;
+
+/** Classe de pessoal: o valor vai para Salário, não entra no total de manutenção. */
+export const CLASSE_PESSOAL = "Pessoal/encargos (lançado em manut.)";
+export const CLASSE_A_CLASSIFICAR = "A CLASSIFICAR";
+
+/** Subcategorias que viram colunas 12m na tabela de manutenção. */
+export const SUBCATEGORIAS_MANUTENCAO = [
+  "Veículos leves",
+  "Veículos pesados",
+  "Máquinas",
+  "Implementos",
+] as const;
+
+export type ValoresClasse = {
+  periodo: number;
+  pctPeriodo: number | null;
+  total12m: number;
+  pct12m: number | null;
+  total12mAnterior: number;
+  var12m: number | null;
+  /** Total 12m por subcategoria, na ordem de SUBCATEGORIAS_MANUTENCAO. */
+  porSubcategoria12m: number[];
+};
+
+export type LinhaClasseManutencao = ValoresClasse & { classe: string };
+
+export type ManutencaoPorClasse = {
+  classes: LinhaClasseManutencao[];
+  total: ValoresClasse;
+  /** Pessoal lançado em manutenção (movido para Salário), fora do total. */
+  pessoal: { periodo: number; total12m: number };
+  aClassificarPeriodo: number;
+};
+
+export function manutencaoPorClasse(
+  linhas: readonly LinhaManutClasse[],
+  f: FiltroMetricas,
+): ManutencaoPorClasse {
+  const base = filtrarDimensoes(linhas, f);
+  const janelas = {
+    atual: { ini: f.mesIni, fim: f.mesFim },
+    u12: janela12m(f.mesFim),
+    a12: janela12mAnterior(f.mesFim),
+  };
+  const pessoalChave = normalizarTexto(CLASSE_PESSOAL);
+  const subChaves = SUBCATEGORIAS_MANUTENCAO.map(normalizarTexto);
+
+  // rótulo canônico por chave normalizada, na ordem fixa + extras antes de A CLASSIFICAR
+  const fixas = CLASSES_MANUTENCAO.filter((c) => c !== CLASSE_A_CLASSIFICAR);
+  const rotulos = new Map<string, string>(fixas.map((c) => [normalizarTexto(c), c]));
+  for (const l of base) {
+    const k = normalizarTexto(l.classe) || normalizarTexto(CLASSE_A_CLASSIFICAR);
+    if (k !== pessoalChave && !rotulos.has(k) && k !== normalizarTexto(CLASSE_A_CLASSIFICAR)) {
+      rotulos.set(k, l.classe);
+    }
+  }
+  rotulos.set(normalizarTexto(CLASSE_A_CLASSIFICAR), CLASSE_A_CLASSIFICAR);
+
+  type Acc = { periodo: number; u12: number; a12: number; sub: number[] };
+  const novo = (): Acc => ({ periodo: 0, u12: 0, a12: 0, sub: subChaves.map(() => 0) });
+  const porClasse = new Map<string, Acc>([...rotulos.keys()].map((k) => [k, novo()]));
+  const total = novo();
+  const pessoal = { periodo: 0, total12m: 0 };
+
+  const dentro = (mes: ChaveMes, p: Periodo) => mes >= p.ini && mes <= p.fim;
+  for (const l of base) {
+    const noAtual = dentro(l.mes, janelas.atual);
+    const noU12 = dentro(l.mes, janelas.u12);
+    const noA12 = dentro(l.mes, janelas.a12);
+    if (noAtual) pessoal.periodo += l.pessoal;
+    if (noU12) pessoal.total12m += l.pessoal;
+
+    const k = normalizarTexto(l.classe) || normalizarTexto(CLASSE_A_CLASSIFICAR);
+    if (k === pessoalChave) continue;
+    const accs = [porClasse.get(k)!, total];
+    const iSub = subChaves.indexOf(normalizarTexto(l.subcategoria));
+    for (const acc of accs) {
+      if (noAtual) acc.periodo += l.manutencao;
+      if (noU12) {
+        acc.u12 += l.manutencao;
+        if (iSub >= 0) acc.sub[iSub]! += l.manutencao;
+      }
+      if (noA12) acc.a12 += l.manutencao;
+    }
+  }
+
+  const valores = (a: Acc): ValoresClasse => ({
+    periodo: a.periodo,
+    pctPeriodo: dividir(a.periodo, total.periodo),
+    total12m: a.u12,
+    pct12m: dividir(a.u12, total.u12),
+    total12mAnterior: a.a12,
+    var12m: variacao(a.u12, a.a12),
+    porSubcategoria12m: a.sub,
+  });
+
+  return {
+    classes: [...rotulos.entries()].map(([k, classe]) => ({
+      classe,
+      ...valores(porClasse.get(k)!),
+    })),
+    total: valores(total),
+    pessoal,
+    aClassificarPeriodo: porClasse.get(normalizarTexto(CLASSE_A_CLASSIFICAR))!.periodo,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Tabela completa de ativos (cadastro + período + rateio)
+// ---------------------------------------------------------------------------
+
+/** Linha da tabela ativos (aba GRUPOS da planilha). */
+export type AtivoCadastro = {
+  m: number;
+  patrimonio: string | null;
+  subgrupo: string | null;
+  grupo_override: string | null;
+};
+
+/** Grupo do ativo, como na v_lancamentos: "Grupo (edite aqui)" ou, vazio, o subgrupo. */
+export function grupoDoCadastro(
+  a: Pick<AtivoCadastro, "subgrupo" | "grupo_override">,
+): string | null {
+  return a.grupo_override?.trim() || a.subgrupo || null;
+}
+
+export type LinhaAtivoCompleta = LinhaTabelaAtivo & {
+  /** Custo total nos 12 meses terminando em mesFim. */
+  custo12m: number;
+  /** Manutenção 12m ÷ 12. */
+  manutMediaMensal12m: number;
+  /** Parte do custo dos semirreboques (só cavalos mecânicos). */
+  custoReboque: number | null;
+  /** (custo total + custo reboque) ÷ km (só cavalos mecânicos). */
+  custoPorKmComReboque: number | null;
+  /** Posição no ranking de custo do período (1 = maior); null sem custo. */
+  ranking: number | null;
+  /** Está no cadastro mas não teve lançamento no período. */
+  semLancamento: boolean;
+};
+
+/**
+ * Lista de ativos do período: os que tiveram lançamento (tabelaAtivos) e os
+ * do cadastro sem lançamento, zerados. Com filtro de empresa, um ativo sem
+ * lançamento só entra se o seu último lançamento (em qualquer mês) foi dessa
+ * empresa — o cadastro não tem empresa.
+ */
+export function tabelaAtivosCompleta(
+  linhas: readonly LinhaMensalAtivo[],
+  cadastro: readonly AtivoCadastro[],
+  f: FiltroMetricas,
+  parametros: Parametros,
+  semirreboques: readonly number[],
+): LinhaAtivoCompleta[] {
+  const comLancamento = tabelaAtivos(linhas, f, parametros);
+  const rateio = rateioSemirreboques(linhas, f, semirreboques, parametros);
+  const reboquePorM = new Map(rateio.porCavalo.map((c) => [c.m, c.custo_reboque]));
+  const cadastroPorM = new Map(cadastro.map((c) => [c.m, c]));
+
+  const daEmpresa = filtrarEmpresa(linhas, f.empresa);
+  const u12 = noPeriodo(daEmpresa, janela12m(f.mesFim));
+  const custo12 = new Map<number, number>();
+  const manut12 = new Map<number, number>();
+  for (const l of u12) {
+    custo12.set(l.m, (custo12.get(l.m) ?? 0) + l.custo_total);
+    manut12.set(l.m, (manut12.get(l.m) ?? 0) + l.manutencao);
+  }
+  // último lançamento de cada M (para inferir unidade/categoria dos zerados)
+  const ultimo = new Map<number, LinhaMensalAtivo>();
+  for (const l of daEmpresa) {
+    const u = ultimo.get(l.m);
+    if (!u || l.mes > u.mes) ultimo.set(l.m, l);
+  }
+  // classificação conhecida de cada subgrupo (em qualquer empresa)
+  const porSubgrupo = new Map<string, LinhaMensalAtivo>();
+  for (const l of linhas) porSubgrupo.set(normalizarTexto(l.subgrupo), l);
+
+  const extras = (r: LinhaTabelaAtivo, semLancamento: boolean) => {
+    const custoReboque = reboquePorM.has(r.m) ? reboquePorM.get(r.m)! : null;
+    return {
+      custo12m: custo12.get(r.m) ?? 0,
+      manutMediaMensal12m: (manut12.get(r.m) ?? 0) / 12,
+      custoReboque,
+      custoPorKmComReboque:
+        custoReboque == null ? null : dividir(r.custo_total + custoReboque, r.km_hr),
+      ranking: null,
+      semLancamento,
+    };
+  };
+
+  const resultado: LinhaAtivoCompleta[] = comLancamento.map((r) => ({
+    ...r,
+    patrimonio: r.patrimonio ?? cadastroPorM.get(r.m)?.patrimonio ?? null,
+    ...extras(r, false),
+  }));
+
+  const presentes = new Set(comLancamento.map((r) => r.m));
+  for (const c of cadastro) {
+    if (presentes.has(c.m)) continue;
+    if (f.m != null && c.m !== f.m) continue;
+    const grupo = grupoDoCadastro(c);
+    if (!semFiltroGrupo(f.grupo) && !igual(grupo, f.grupo)) continue;
+    const hist = ultimo.get(c.m);
+    if (!semFiltroEmpresa(f.empresa) && !hist) continue;
+    const ref = hist ?? porSubgrupo.get(normalizarTexto(c.subgrupo));
+    const unidade: Unidade = ref?.unidade ?? "-";
+    const zerada: LinhaTabelaAtivo = {
+      ...calcularEficiencia(unidade, 0, 0, 0),
+      m: c.m,
+      patrimonio: c.patrimonio,
+      empresas: hist ? [hist.empresa] : [],
+      subgrupo: c.subgrupo,
+      grupo,
+      categoria: ref?.categoria ?? "NÃO CLASSIFICADO",
+      subcategoria: ref?.subcategoria ?? "NÃO CLASSIFICADO",
+      combustivel: 0,
+      manutencao: 0,
+      salario: 0,
+      depreciacao: 0,
+      manutencao12m: manut12.get(c.m) ?? 0,
+      consumoRef12m: null,
+      desvioConsumo: null,
+      alertas: [],
+    };
+    resultado.push({ ...zerada, ...extras(zerada, true) });
+  }
+
+  resultado.sort((a, b) => b.custo_total - a.custo_total || a.m - b.m);
+  let posicao = 0;
+  for (const r of resultado) if (r.custo_total > 0) r.ranking = ++posicao;
+  return resultado;
+}
+
+/** Motorista que aparece em mais lançamentos (empate: ordem alfabética). */
+export function motoristaMaisFrequente(
+  lancamentos: readonly { motorista: string | null }[],
+): string | null {
+  const contagem = new Map<string, number>();
+  for (const l of lancamentos) {
+    const nome = l.motorista?.trim();
+    if (nome) contagem.set(nome, (contagem.get(nome) ?? 0) + 1);
+  }
+  let melhor: string | null = null;
+  let max = 0;
+  for (const [nome, n] of contagem) {
+    if (n > max || (n === max && melhor != null && nome < melhor)) {
+      melhor = nome;
+      max = n;
+    }
+  }
+  return melhor;
+}
+
+// ---------------------------------------------------------------------------
 // Ponte com os filtros da URL
 // ---------------------------------------------------------------------------
 

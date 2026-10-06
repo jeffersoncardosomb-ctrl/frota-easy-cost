@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { somarMeses } from "@/lib/format";
 import {
   ALERTAS,
+  CLASSE_PESSOAL,
   composicaoPorSubcategoria,
+  manutencaoPorClasse,
+  motoristaMaisFrequente,
+  tabelaAtivosCompleta,
+  type LinhaManutClasse,
   conferirTotais,
   custoNaoClassificado,
   eficienciaCategoria,
@@ -427,5 +432,146 @@ describe("visão geral", () => {
     const ruim = conferirTotais(somarTotais([linha({ combustivel: 60, custo_total: 100 })]));
     expect(ruim.ok).toBe(false);
     expect(ruim.diferenca).toBe(-40);
+  });
+});
+
+function manut(p: Partial<LinhaManutClasse>): LinhaManutClasse {
+  return {
+    empresa: "VC",
+    mes: "2026-08",
+    m: 1,
+    grupo: "TRATOR",
+    subcategoria: "Máquinas",
+    classe: "Pneus",
+    manutencao: 0,
+    pessoal: 0,
+    ...p,
+  };
+}
+
+describe("manutenção por classe", () => {
+  it("ordem fixa, extras antes de A CLASSIFICAR, pessoal fora do total", () => {
+    const r = manutencaoPorClasse(
+      [
+        manut({ classe: "PNEUS", manutencao: 300 }),
+        manut({ classe: "Pneus", manutencao: 100, subcategoria: "Veículos pesados" }),
+        manut({ classe: "Classe nova", manutencao: 100 }),
+        manut({ classe: "A CLASSIFICAR", manutencao: 50 }),
+        manut({ classe: "Estornos", manutencao: -50 }),
+        manut({ classe: CLASSE_PESSOAL, manutencao: 0, pessoal: 999 }),
+        manut({ classe: "Pneus", manutencao: 200, mes: "2025-08" }), // 12m anteriores
+      ],
+      filtro(),
+    );
+    const nomes = r.classes.map((c) => c.classe);
+    expect(nomes.slice(0, 3)).toEqual([
+      "Peças e componentes",
+      "Oficina interna (rateio OS)",
+      "Serviços de terceiros",
+    ]);
+    expect(nomes.slice(-2)).toEqual(["Classe nova", "A CLASSIFICAR"]);
+    expect(nomes).not.toContain(CLASSE_PESSOAL);
+
+    const pneus = r.classes.find((c) => c.classe === "Pneus")!;
+    expect(pneus.periodo).toBe(400);
+    expect(pneus.pctPeriodo).toBeCloseTo(400 / 500);
+    expect(pneus.total12mAnterior).toBe(200);
+    expect(pneus.var12m).toBeCloseTo(1);
+    // colunas: Veículos leves, Veículos pesados, Máquinas, Implementos
+    expect(pneus.porSubcategoria12m).toEqual([0, 100, 300, 0]);
+
+    expect(r.total.periodo).toBe(500);
+    expect(r.pessoal.periodo).toBe(999);
+    expect(r.aClassificarPeriodo).toBe(50);
+  });
+});
+
+describe("tabela completa de ativos", () => {
+  const cadastro = [
+    { m: 1, patrimonio: "Cavalo 1", subgrupo: "CAVALO MECÂNICO", grupo_override: null },
+    { m: 2, patrimonio: "Trator parado", subgrupo: "TRATOR", grupo_override: "Tratores" },
+    { m: 3, patrimonio: "Pickup OL", subgrupo: "PICKUP", grupo_override: null },
+    { m: 900, patrimonio: "Reboque", subgrupo: "SEMIRREBOQUE", grupo_override: null },
+  ];
+  const linhas = [
+    linha({
+      m: 1,
+      subgrupo: "CAVALO MECÂNICO",
+      unidade: "km",
+      km_hr: 1000,
+      litros: 400,
+      custo_total: 5000,
+    }),
+    linha({ m: 900, subgrupo: "SEMIRREBOQUE", unidade: "-", custo_total: 2000 }),
+    linha({
+      m: 2,
+      mes: "2026-01",
+      subgrupo: "TRATOR",
+      unidade: "h",
+      custo_total: 1200,
+      manutencao: 1200,
+    }),
+    linha({
+      m: 3,
+      mes: "2026-01",
+      empresa: "OL",
+      subgrupo: "PICKUP",
+      unidade: "km",
+      custo_total: 10,
+    }),
+  ];
+
+  it("inclui ativos do cadastro sem lançamento, zerados, com rateio e ranking", () => {
+    const t = tabelaAtivosCompleta(linhas, cadastro, filtro(), PARAMETROS_PADRAO, [900]);
+    expect(t.map((r) => r.m)).toEqual([1, 900, 2, 3]);
+    const cavalo = t[0]!;
+    expect(cavalo.ranking).toBe(1);
+    expect(cavalo.custoReboque).toBe(2000);
+    expect(cavalo.custoPorKmComReboque).toBe(7); // (5000 + 2000) / 1000 km
+    const parado = t.find((r) => r.m === 2)!;
+    expect(parado.semLancamento).toBe(true);
+    expect(parado.custo_total).toBe(0);
+    expect(parado.ranking).toBeNull();
+    expect(parado.unidade).toBe("h");
+    expect(parado.grupo).toBe("Tratores");
+    expect(parado.custo12m).toBe(1200);
+    expect(parado.manutMediaMensal12m).toBe(100);
+    expect(t.find((r) => r.m === 900)!.custoReboque).toBeNull();
+  });
+
+  it("respeita filtros de grupo, M e empresa para os zerados", () => {
+    const porGrupo = tabelaAtivosCompleta(
+      linhas,
+      cadastro,
+      filtro({ grupo: "tratores" }),
+      PARAMETROS_PADRAO,
+      [],
+    );
+    expect(porGrupo.map((r) => r.m)).toEqual([2]);
+    const vc = tabelaAtivosCompleta(
+      linhas,
+      cadastro,
+      filtro({ empresa: "VC" }),
+      PARAMETROS_PADRAO,
+      [],
+    );
+    // M3 só teve lançamento na OL: fica fora quando o filtro é VC
+    expect(vc.map((r) => r.m)).not.toContain(3);
+    expect(vc.map((r) => r.m)).toContain(2);
+  });
+});
+
+describe("motorista mais frequente", () => {
+  it("conta ocorrências e ignora vazios", () => {
+    expect(
+      motoristaMaisFrequente([
+        { motorista: "Ana" },
+        { motorista: "Bruno" },
+        { motorista: " Bruno " },
+        { motorista: null },
+        { motorista: "" },
+      ]),
+    ).toBe("Bruno");
+    expect(motoristaMaisFrequente([])).toBeNull();
   });
 });
